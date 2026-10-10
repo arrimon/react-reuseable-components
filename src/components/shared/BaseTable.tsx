@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import Drawer from "./Drawer";
 
 /**
  * Tailwind CSS v4
@@ -53,6 +54,15 @@ export interface BaseTableProps<T> {
   onFilter?: () => void;
   /** Number of active filters, shown as a badge on the Filter button */
   filterCount?: number;
+  /**
+   * Filter panel content. When provided, the Filter button opens a Drawer
+   * containing it. Receives a `close` helper so the content can dismiss itself.
+   */
+  filterContent?: (api: { close: () => void }) => ReactNode;
+  /** Optional footer for the filter drawer (e.g. Reset / Apply buttons). */
+  filterFooter?: (api: { close: () => void }) => ReactNode;
+  /** Title shown at the top of the filter drawer. Default: "Filters" */
+  filterTitle?: string;
 
   /** Controlled sort column key. Pair with `onSortChange` for server-side sorting. */
   sortKey?: string;
@@ -304,6 +314,9 @@ export default function BaseTable<T>({
   onExport,
   onFilter,
   filterCount = 0,
+  filterContent,
+  filterFooter,
+  filterTitle = "Filters",
   sortKey,
   sortDir = "asc",
   onSortChange,
@@ -326,6 +339,10 @@ export default function BaseTable<T>({
     const t = setTimeout(() => onSearchChange?.(query), 300);
     return () => clearTimeout(t);
   }, [query, search, onSearchChange]);
+
+  /* ---- filter drawer ---- */
+  const [filterOpen, setFilterOpen] = useState(false);
+  const closeFilter = () => setFilterOpen(false);
 
   /* ---- sorting ---- */
   const [internalSort, setInternalSort] = useState<{
@@ -452,7 +469,14 @@ export default function BaseTable<T>({
             <DownloadIcon />
             Export
           </button>
-          <button type="button" onClick={onFilter} className={toolbarButton}>
+          <button
+            type="button"
+            onClick={() => {
+              if (filterContent) setFilterOpen(true);
+              else onFilter?.();
+            }}
+            className={toolbarButton}
+          >
             <FilterIcon />
             Filter
             {filterCount > 0 && (
@@ -729,6 +753,17 @@ export default function BaseTable<T>({
           </PageButton>
         </div>
       </nav>
+
+      {filterContent && (
+        <Drawer
+          isOpen={filterOpen}
+          onClose={closeFilter}
+          title={filterTitle}
+          footer={filterFooter?.({ close: closeFilter })}
+        >
+          {filterContent({ close: closeFilter })}
+        </Drawer>
+      )}
     </section>
   );
 }

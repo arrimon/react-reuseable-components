@@ -103,9 +103,9 @@ const FloatingLabelInput = forwardRef<HTMLInputElement, FloatingLabelInputProps>
             aria-describedby={hasDescription ? descriptionId : undefined}
             className={cn(
               "peer block h-10 w-full rounded-lg pe-3.5 text-sm",
-              // Input text uses the full text color of the page: always the strongest
-              // element, clearly sharper than the label and border.
-              "text-inherit caret-indigo-500",
+              // Input text follows the theme (dark text on light, light text on
+              // dark) exactly like the Select field.
+              "text-gray-900 caret-indigo-500 dark:text-white",
               // Hard reset (!important) so global form styles (e.g. @tailwindcss/forms,
               // Flowbite) can never add their own border, ring or shadow to the input.
               "border-0! bg-transparent! shadow-none! ring-0! outline-hidden!",

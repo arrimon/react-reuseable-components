@@ -2,7 +2,33 @@ import { useEffect, useState } from 'react'
 import BaseTable from './components/shared/BaseTable'
 import type { Column, SortDirection } from './components/shared/BaseTable'
 import FloatingLabelInput from './components/shared/FloatingLabelInput'
-import { INITIAL_FORM, USERS } from './dummyData'
+import Select from './components/shared/Select'
+import MultiSelect from './components/shared/MultiSelect'
+import SimpleTable from './components/shared/SimpleTable'
+import type { SimpleColumn } from './components/shared/SimpleTable'
+import BarChart from './components/shared/BarChart'
+import PieChart from './components/shared/PieChart'
+import BarChartBreakdown from './components/shared/BarChartBreakdown'
+import StatCard, {
+  ClockIcon,
+  LogOutIcon,
+  UserCheckIcon,
+  UsersIcon,
+} from './components/shared/StatCard'
+import {
+  COUNTRY_OPTIONS,
+  INITIAL_FORM,
+  MONTHLY_SALES,
+  POSITIONS,
+  REVENUE_BREAKDOWN,
+  ROLE_OPTIONS,
+  SKILL_OPTIONS,
+  STATS,
+  STATUSES,
+  TRAFFIC_SOURCES,
+  USERS,
+  WEEKLY_VISITS,
+} from './dummyData'
 import type { User } from './dummyData'
 
 type Theme = 'light' | 'dark'
@@ -57,7 +83,63 @@ const STATUS_STYLES: Record<User['status'], string> = {
     'bg-gray-100 text-gray-600 ring-gray-500/20 dark:bg-gray-500/10 dark:text-gray-400 dark:ring-gray-400/20',
 }
 
+const POSITION_OPTIONS = POSITIONS.map((p) => ({ value: p, label: p }))
+const STATUS_OPTIONS = STATUSES.map((s) => ({ value: s, label: s }))
+
+type UserFilters = {
+  name: string
+  position: string | null
+  status: User['status'] | null
+}
+
+const EMPTY_FILTERS: UserFilters = { name: '', position: null, status: null }
+
+const STAT_ICONS = {
+  users: <UsersIcon />,
+  'user-check': <UserCheckIcon />,
+  clock: <ClockIcon />,
+  logout: <LogOutIcon />,
+} as const
+
 const columns: Column<User>[] = [
+  {
+    key: 'name',
+    header: 'Name',
+    sortValue: (u) => u.name,
+    cell: (u) => (
+      <span className="font-medium text-gray-900 dark:text-white">
+        {u.name}
+      </span>
+    ),
+  },
+  {
+    key: 'email',
+    header: 'Email',
+    sortValue: (u) => u.email,
+    cell: (u) => u.email,
+  },
+  {
+    key: 'position',
+    header: 'Position',
+    sortValue: (u) => u.position,
+    hideBelow: 'md',
+    cell: (u) => u.position,
+  },
+  {
+    key: 'status',
+    header: 'Status',
+    sortValue: (u) => u.status,
+    cell: (u) => (
+      <span
+        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${STATUS_STYLES[u.status]}`}
+      >
+        {u.status}
+      </span>
+    ),
+  },
+]
+
+const simpleColumns: SimpleColumn<User>[] = [
   {
     key: 'name',
     header: 'Name',
@@ -102,6 +184,15 @@ function App() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<string>()
   const [sortDir, setSortDir] = useState<SortDirection>('asc')
+  // `filters` = what's being edited in the drawer, `appliedFilters` = what the
+  // table actually uses (only updated when "Apply filters" is clicked).
+  const [filters, setFilters] = useState<UserFilters>(EMPTY_FILTERS)
+  const [appliedFilters, setAppliedFilters] = useState<UserFilters>(EMPTY_FILTERS)
+
+  const activeFilterCount =
+    (appliedFilters.name ? 1 : 0) +
+    (appliedFilters.position ? 1 : 0) +
+    (appliedFilters.status ? 1 : 0)
 
   const [form, setForm] = useState(INITIAL_FORM)
   const emailInvalid = form.email !== '' && !form.email.includes('@')
@@ -112,11 +203,17 @@ function App() {
   }, [theme])
 
   const query = search.trim().toLowerCase()
-  const filtered = query
-    ? USERS.filter((u) =>
-        `${u.name} ${u.email} ${u.position}`.toLowerCase().includes(query),
-      )
-    : USERS
+  const filtered = USERS.filter((u) => {
+    if (query && !`${u.name} ${u.email} ${u.position}`.toLowerCase().includes(query)) {
+      return false
+    }
+    if (appliedFilters.name && !u.name.toLowerCase().includes(appliedFilters.name.toLowerCase())) {
+      return false
+    }
+    if (appliedFilters.position && u.position !== appliedFilters.position) return false
+    if (appliedFilters.status && u.status !== appliedFilters.status) return false
+    return true
+  })
 
   const sortCol = columns.find((c) => c.key === sortKey)
   const sorted = sortCol?.sortValue
@@ -173,6 +270,24 @@ function App() {
 
         <section className="flex flex-col gap-4">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Stat Cards
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STATS.map((stat) => (
+              <StatCard
+                key={stat.id}
+                title={stat.title}
+                count={stat.count}
+                tone={stat.tone}
+                icon={STAT_ICONS[stat.icon]}
+                badges={stat.badges}
+              />
+            ))}
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             FloatingLabelInput
           </h2>
           <div className="grid gap-6 sm:grid-cols-2">
@@ -191,6 +306,121 @@ function App() {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               error={emailInvalid ? 'Enter a valid email address.' : undefined}
               // hint="We'll never share your email."
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Select
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Select
+              label="Role"
+              name="role"
+              required
+              options={ROLE_OPTIONS}
+              value={form.role}
+              onChange={(role) => setForm({ ...form, role })}
+              hint="Choose a role for the invited member."
+            />
+            <Select
+              label="Country"
+              name="country"
+              options={COUNTRY_OPTIONS}
+              value={form.country}
+              onChange={(country) => setForm({ ...form, country })}
+              hint="Some options can be disabled."
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            MultiSelect
+          </h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <MultiSelect
+              label="Skills"
+              name="skills"
+              options={SKILL_OPTIONS}
+              value={form.skills}
+              onChange={(skills) => setForm({ ...form, skills })}
+              maxVisibleChips={3}
+              error={
+                form.skills.length > 5
+                  ? 'Pick at most 5 skills.'
+                  : undefined
+              }
+              hint="Selected values show as chips."
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Simple Table
+          </h2>
+          <SimpleTable
+            columns={simpleColumns}
+            rows={USERS}
+            getRowId={(u) => u.id}
+            defaultPageSize={10}
+          />
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Bar Chart
+          </h2>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+              <BarChart
+                title="Monthly Revenue"
+                subtitle="Jan – Dec"
+                data={MONTHLY_SALES}
+                height={340}
+                barColor="#6366f1"
+              />
+            </div>
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+              <BarChart
+                title="Weekly Visitors"
+                subtitle="Mon – Sun"
+                data={WEEKLY_VISITS}
+                height={340}
+                barColor="#10b981"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Bar Chart Breakdown
+          </h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+            <BarChartBreakdown
+              title="Monthly Revenue by Channel"
+              subtitle="Stacked by sales channel"
+              categories={REVENUE_BREAKDOWN.categories}
+              series={REVENUE_BREAKDOWN.series}
+              height={360}
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Pie Chart
+          </h2>
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-xs dark:border-gray-800 dark:bg-gray-900">
+            <PieChart
+              title="Traffic Sources"
+              subtitle="Last 30 days"
+              data={TRAFFIC_SOURCES}
+              height={360}
+              radius={['40%', '70%']}
             />
           </div>
         </section>
@@ -225,7 +455,58 @@ function App() {
               setPage(1)
             }}
             onExport={handleExport}
-            onFilter={() => alert('Open your filter panel here')}
+            filterCount={activeFilterCount}
+            filterTitle="Filter users"
+            filterContent={() => (
+              <div className="flex flex-col gap-6">
+                <FloatingLabelInput
+                  label="Name contains"
+                  value={filters.name}
+                  onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+                />
+                <Select
+                  label="Position"
+                  options={POSITION_OPTIONS}
+                  value={filters.position}
+                  onChange={(position) => setFilters({ ...filters, position })}
+                />
+                <Select
+                  label="Status"
+                  options={STATUS_OPTIONS}
+                  value={filters.status}
+                  onChange={(status) =>
+                    setFilters({ ...filters, status: status as User['status'] | null })
+                  }
+                />
+              </div>
+            )}
+            filterFooter={({ close }) => (
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFilters(EMPTY_FILTERS)
+                    setAppliedFilters(EMPTY_FILTERS)
+                    setPage(1)
+                    close()
+                  }}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-xs transition-colors hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-hidden dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppliedFilters(filters)
+                    setPage(1)
+                    close()
+                  }}
+                  className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:outline-hidden"
+                >
+                  Apply filters
+                </button>
+              </div>
+            )}
             onView={(u) => alert(`View ${u.name}`)}
             onEdit={(u) => alert(`Edit ${u.name}`)}
             onDelete={(u) => alert(`Delete ${u.name}`)}
